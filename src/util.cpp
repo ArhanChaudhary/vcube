@@ -112,3 +112,15 @@ std::string moveseq_t::to_string(style_t style) const {
 
 	return s;
 }
+
+uint32_t moveseq_t::size_qtm() const {
+	uint32_t size = 0;
+	for (auto m : *this) {
+		if (m % 3 == 1) {
+			size += 2;
+		} else {
+			size++;
+		}
+	}
+	return size;
+}

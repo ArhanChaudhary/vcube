@@ -49,10 +49,8 @@ static struct {
 	std::array<int, 2> speffz_buffer;
 	format_t format;
 	bool no_input;
-	bool ordered;
 	bool shm;
 	bool inverse;
-	uint32_t depth;
 } cf;
 
 static std::string base_path(const char *argv0);
@@ -127,19 +125,15 @@ int main(int argc, char * const *argv) {
 	cf.format = FMT_MOVES;
 	cf.speffz_buffer = { 'A', 'U' };
 	cf.no_input = false;
-	cf.ordered = false;
 	cf.inverse = false;
-	cf.depth = 20;
 
 	for (;;) {
 		static struct option long_options[] = {
 			{ "coord",    required_argument, 0, 'c' },
-			{ "depth",    required_argument, 0, 'd' },
 			{ "format",   required_argument, 0, 'f' },
 			{ "help",     no_argument,       0, 'h' },
 			{ "inverse",  no_argument,       0, 'i' },
 			{ "no-input", no_argument,       0, 'n' },
-			{ "ordered",  no_argument,       0, 'O' },
 			{ "shm",      no_argument,       0, 'S' },
 			{ "speffz",   optional_argument, 0, 'z' },
 			{ "style",    required_argument, 0, 's' },
@@ -149,7 +143,7 @@ int main(int argc, char * const *argv) {
 
 		int option_index = 0;
 		int this_option_optind = optind ? optind : 1;
-		int c = getopt_long(argc, argv, "c:d:f:hinOSs:w:z::", long_options, &option_index);
+		int c = getopt_long(argc, argv, "c:f:hinSs:w:z::", long_options, &option_index);
 		if (c == -1) {
 			break;
 		}
@@ -158,9 +152,6 @@ int main(int argc, char * const *argv) {
 		switch (c) {
 		    case 'c':
 			cf.coord = strtoul(optarg, NULL, 10);
-			break;
-		    case 'd':
-			cf.depth = strtoul(optarg, NULL, 10);
 			break;
 		    case 'f':
 			len = strlen(optarg);
@@ -188,9 +179,6 @@ int main(int argc, char * const *argv) {
 			break;
 		    case 'n':
 			cf.no_input = true;
-			break;
-		    case 'O':
-			cf.ordered = true;
 			break;
 		    case 'S':
 			cf.shm = true;
@@ -255,11 +243,9 @@ void usage(const char *argv0, int status) {
 		"Options:\n"
 		"  -h, --help\n"
 		"  -c, --coord=COORD           pruning coordinate variant\n"
-		"  -d, --depth=DEPTH           maximum depth to search\n"
 		"  -f, --format=FORMAT         input format\n"
 		"  -z, --speffz=[C[E]]         speffz buffers (implies -f speffz)\n"
 		"  -n, --no-input              load/generate tables and exit\n"
-		"  -O, --ordered               output in the same order as input\n"
 		"  -S, --shm                   load table into shared memory\n"
 		"  -s, --style=STYLE           output style\n"
 		"  -i, --inverse               output scrambles instead of solutions\n"
@@ -358,22 +344,20 @@ void solver(const std::string &table_filename, uint32_t shm_key) {
 	auto t0 = std::chrono::steady_clock::now();
 	auto cpu_t0 = cpu_clock::now();
 
-	std::deque<std::string> solutions;
-	uint64_t next_id = 0;
+	uint64_t next_id = 1;
 
-	std::mutex mtx, out_mtx;
+	std::mutex mtx;
 	std::vector<std::thread> workers;
+	uint64_t best_size = 20;
+	uint64_t best_size_qtm = 26;
 	for (int i = 0; i < cf.workers; i++) {
-		workers.push_back(std::thread([&mtx, &out_mtx, &P, &next_id, &solutions]() {
+		workers.push_back(std::thread([&mtx, &P, &next_id, &best_size, &best_size_qtm]() {
 					char buf[1024];
-					decltype(solutions)::iterator solutionp;
 					nx::solver S(P);
 					mtx.lock();
 					while (!feof(stdin) && fgets(buf, sizeof(buf), stdin)) {
 						uint64_t solution_id = next_id++;
-						if (cf.ordered) {
-							solutionp = solutions.insert(solutions.end(), "");
-						}
+						int synced_best_size = best_size;
 						mtx.unlock();
 
 						cube c;
@@ -390,32 +374,26 @@ void solver(const std::string &table_filename, uint32_t shm_key) {
 						}
 						if (cf.inverse) c = ~c;
 
-						auto t0 = std::chrono::steady_clock::now();
-						auto moves = S.solve(c, cf.depth);
-						std::chrono::duration<double> elapsed = std::chrono::steady_clock::now() - t0;
+						auto moves = S.solve(c, synced_best_size);
 
 						moves = moves.canonical();
-						std::string solution = moves.to_string(cf.style);
-
-						snprintf(buf, sizeof(buf), "%lu %.9f %lu %s",
-								solution_id,
-								elapsed.count(),
-								moves.size(),
-								solution.c_str());
-
-						out_mtx.lock();
-						if (cf.ordered) {
-							*solutionp = buf;
-							while (!solutions.empty() && !solutions.front().empty()) {
-								puts(solutions.front().c_str());
-								solutions.pop_front();
-							}
-						} else {
+						uint64_t size_htm = moves.size();
+						uint64_t size_qtm = moves.size_qtm();
+						mtx.lock();
+						if (size_htm > 0 && (
+							size_htm < best_size ||
+							size_htm == best_size && size_qtm <= best_size_qtm
+						)) {
+							best_size = size_htm;
+							best_size_qtm = size_qtm;
+							std::string solution = moves.to_string(cf.style);
+							snprintf(buf, sizeof(buf), "%lu: %luhtm %luqtm %s",
+									solution_id,
+									best_size,
+									best_size_qtm,
+									solution.c_str());
 							puts(buf);
 						}
-						out_mtx.unlock();
-
-						mtx.lock();
 					}
 					mtx.unlock();
 					}));

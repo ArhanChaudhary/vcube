@@ -127,6 +127,7 @@ struct moveseq_t : public std::vector<uint8_t> {
 
 	moveseq_t canonical() const;
 	std::string to_string(style_t style = SINGMASTER) const;
+	uint32_t size_qtm() const;
 };
 
 }
