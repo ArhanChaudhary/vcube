@@ -94,19 +94,23 @@ moveseq_t moveseq_t::canonical() const {
 
 std::string moveseq_t::to_string(style_t style) const {
 	const char *face = "URFDLB";
-	const char *power = (style == FIXED) ? "123" : " 2'";
+	const char *power = (style == FIXED) ? "123" : "2'";
 	bool delim = (style != FIXED);
 
 	std::string s;
 	for (auto m : *this) {
 		s.push_back(face[m / 3]);
-		s.push_back(power[m % 3]);
 		if (delim) {
+			if (m % 3 != 0) {
+				s.push_back(power[m % 3 - 1]);
+			}
 			s.push_back(' ');
+		} else {
+			s.push_back(power[m % 3]);
 		}
 	}
 
-	while (!s.empty() && s.back() == ' ') {
+	if (!s.empty() && s.back() == ' ') {
 		s.pop_back();
 	}
 
