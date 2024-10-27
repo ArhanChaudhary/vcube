@@ -1,5 +1,9 @@
 # vcube
 
+This is a fork of vcube for specialized use within [qter](https://github.com/ArhanChaudhary/qter). This modification of the original solver efficiently finds the shortest optimal solution from an input list of scrambles by maintaining a running maximum search depth. As such, the `--depth` and `--ordered` command line arguments have been removed. Thanks to @Voltara for some [initial help](https://github.com/Voltara/vcube/issues/3).
+
+<hr>
+
 vcube is a fast optimal half-turn metric Rubik's cube solver that takes
 advantage of vector instructions added in Intel's Haswell microarchitecture.
 It is a rewrite of the optimal solver behind
