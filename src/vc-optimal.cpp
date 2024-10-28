@@ -348,16 +348,16 @@ void solver(const std::string &table_filename, uint32_t shm_key) {
 
 	std::mutex mtx;
 	std::vector<std::thread> workers;
-	uint64_t best_size = 20;
+	uint64_t best_size_htm = 20;
 	uint64_t best_size_qtm = 26;
 	for (int i = 0; i < cf.workers; i++) {
-		workers.push_back(std::thread([&mtx, &P, &next_id, &best_size, &best_size_qtm]() {
+		workers.push_back(std::thread([&mtx, &P, &next_id, &best_size_htm, &best_size_qtm]() {
 					char buf[1024];
 					nx::solver S(P);
 					mtx.lock();
 					while (!feof(stdin) && fgets(buf, sizeof(buf), stdin)) {
 						uint64_t solution_id = next_id++;
-						int synced_best_size = best_size;
+						int synced_best_size = best_size_htm;
 						mtx.unlock();
 
 						cube c;
@@ -381,15 +381,15 @@ void solver(const std::string &table_filename, uint32_t shm_key) {
 						uint64_t size_qtm = moves.size_qtm();
 						mtx.lock();
 						if (size_htm > 0 && (
-							size_htm < best_size ||
-							size_htm == best_size && size_qtm <= best_size_qtm
+							size_htm < best_size_htm ||
+							size_htm == best_size_htm && size_qtm <= best_size_qtm
 						)) {
-							best_size = size_htm;
+							best_size_htm = size_htm;
 							best_size_qtm = size_qtm;
 							std::string solution = moves.to_string(cf.style);
 							snprintf(buf, sizeof(buf), "%lu: %luhtm %luqtm %s",
 									solution_id,
-									best_size,
+									best_size_htm,
 									best_size_qtm,
 									solution.c_str());
 							puts(buf);

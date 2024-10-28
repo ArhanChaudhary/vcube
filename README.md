@@ -1,6 +1,6 @@
 # vcube
 
-This is a fork of vcube for specialized use within [qter](https://github.com/ArhanChaudhary/qter). This modification of the original solver efficiently finds the shortest optimal solution from an input list of scrambles by maintaining a running maximum search depth. As such, the `--depth` and `--ordered` command line arguments have been removed. Thanks to @Voltara for some [initial help](https://github.com/Voltara/vcube/issues/3).
+This is a fork of vcube for specialized use within [qter](https://github.com/ArhanChaudhary/qter). This modification of the original solver efficiently finds the shortest optimal solution from an input list of scrambles by maintaining a running maximum search depth. Thanks to @Voltara for some [initial help](https://github.com/Voltara/vcube/issues/3).
 
 <hr>
 
